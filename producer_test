@@ -1,0 +1,60 @@
+import os
+from pykafka import KafkaClient
+
+import json
+import base64
+import logging
+import time
+
+# import logging as log
+# log.basicConfig(level=log.DEBUG)
+import datetime
+host='192.168.50.00:9092,192.168.50.01:9092'
+host2='192.168.50.60:9092,192.168.50.01:9092'
+class Kafka_client():
+    def __init__(self,f_log):
+        client = KafkaClient(hosts=host)
+        client2 = KafkaClient(hosts=host2)
+        print("conn kfaka ok")
+        # self.topic = client.topics[b'ccat']
+        self.topic = client.topics[b'test2']
+        self.producer = self.topic.get_sync_producer(block_on_queue_full=False)
+        self.producer.start()
+        self.f_log = f_log
+        self.topic2 = client2.topics[b'test2']
+        self.producer2 = self.topic2.get_sync_producer(block_on_queue_full=False)
+        self.producer2.start()
+        self.index=0
+
+    def send(self,data):
+        # if self.index >=0:
+        self.producer.produce(data)
+        self.producer2.produce(data)
+        #     self.index +=1
+        log_time = datetime.datetime.now().strftime('%m%d_%H%M%S')
+        self.f_log.write("timestr:%s_data:_%s\n" % (log_time,str(data,encoding='utf-8')[:42]))
+        pass
+
+    def stop(self):
+        self.producer.stop()
+        self.producer2.stop()
+        pass
+
+
+if __name__ == '__main__':
+    kafka=Kafka_client()
+    # kafka.run()
+
+    path=r"D:\data\bj_yuanyang01\JPEGImages/"
+    files = os.listdir(path)
+    index=0
+    for file in files:
+        img = open(path+file, 'rb')
+        image_data = img.read()
+        base64_data = base64.b64encode(image_data)
+        kafka.send(base64_data)
+        index+=1
+        print(str(index))
+        if index>2000:
+            break
+    kafka.stop()
